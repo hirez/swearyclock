@@ -7,7 +7,6 @@
   #include <ESP8266WiFi.h>
 #endif
 #include "AudioFileSourceSPIFFS.h"
-//#include "AudioFileSourceID3.h"
 #include "AudioGeneratorMP3.h"
 #include "AudioOutputI2SNoDAC.h"
 
@@ -15,7 +14,7 @@
 AudioFileSourceSPIFFS *file;
 AudioOutputI2SNoDAC *out;
 AudioGeneratorMP3 *mp3;
-//AudioFileSourceID3 *id3;
+
 
 const byte interruptPin = 13;
 volatile byte interruptCounter = 0;
@@ -38,6 +37,8 @@ void setup() {
   
   digitalWrite(5, 0);
   digitalWrite(0, 1);
+  out = new AudioOutputI2SNoDAC();
+  mp3 = new AudioGeneratorMP3();
 
   pinMode(interruptPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, FALLING);
@@ -64,41 +65,40 @@ void cMove(int dir) {
   analogWrite(5, 0);    // Stop cuckoo motor.
 }
 
-void loop() {
+void cuckooGubbins() {
+  sprintf(fstr,"/swear-%02d.mp3",fn);
+  Serial.println(fstr);
+  file = new AudioFileSourceSPIFFS(fstr);
 
+  cMove(1);
+  fsize = file->getSize();
+  Serial.println(fsize);
+    
+  mp3->begin(file, out);
+  while (mp3->isRunning()) {
+    // Serial.println("Mid bong..");
+    if (!mp3->loop()) mp3->stop(); 
+  } 
+  Serial.println("End Bong!");
+   
+  fn++;
+  if (fn > 12) {
+    fn = 1;
+  }
+
+  cMove(0);
+}
+
+void loop() {
   if (doCuckoo == 1) {
     detachInterrupt(digitalPinToInterrupt(interruptPin));
     Serial.println("More Bong!");
-    
-    sprintf(fstr,"/swear-%02d.mp3",fn);
-    Serial.println(fstr);
-    file = new AudioFileSourceSPIFFS(fstr);
-    out = new AudioOutputI2SNoDAC();
-    mp3 = new AudioGeneratorMP3();
 
-    cMove(1);
-
-    fsize = file->getSize();
-    Serial.println(fsize);
-    
-    mp3->begin(file, out);
-    while (mp3->isRunning()) {
-      // Serial.println("Mid bong..");
-      if (!mp3->loop()) mp3->stop(); 
-    } 
-    Serial.println("End Bong!");
-    
-    fn++;
-    if (fn > 12) {
-      fn = 1;
-    }
-
-    cMove(0);
+    cuckooGubbins();
     
     attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, FALLING);
     doCuckoo = 0;
   }
-  
 }
 
 
